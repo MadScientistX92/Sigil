@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sigil Verify</title>
+<style>
+:root{--bg:#f6f5f1;--fg:#16161a;--mut:#5d5d66;--card:#fff;--line:#e3e1da;--ok:#1f7a4d;--bad:#b3261e;--warn:#8a5a00;--acc:#3a2fd6}
+@media (prefers-color-scheme:dark){:root{--bg:#121216;--fg:#ececf1;--mut:#a0a0ab;--card:#1b1b21;--line:#2c2c35;--ok:#5fd39a;--bad:#ff8a80;--warn:#f0b54a;--acc:#9b94ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:40px 16px}
+h1{font-size:28px;margin:0 0 6px;letter-spacing:-.02em}p.lead{color:var(--mut);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;cursor:pointer}
+.drop.on{border-color:var(--acc)}textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:10px;padding:10px;background:transparent;color:var(--fg);font:inherit}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+label.chip{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:14px;cursor:pointer}
+button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:10px 18px;font:600 15px/1 inherit;cursor:pointer}
+.verdict{font-size:20px;font-weight:650}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+small{color:var(--mut)}.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.tabs button.sel{border-color:var(--acc);color:var(--acc)}
+</style>
+</head>
+<body><main>
+<h1>Is this AI-generated?</h1>
+<p class="lead">Free public detector. Checks signed C2PA provenance, Sigil watermarks and the provenance registry, then tells you which labeling rules the file meets in the EU, California, India and Korea.</p>
+<div class="card">
+  <div class="tabs"><button id="tImg" class="sel" type="button">Image</button><button id="tTxt" type="button">Text</button></div>
+  <div id="pImg"><div class="drop" id="drop">Drop an image here or click to choose<input id="file" type="file" accept="image/*" hidden></div></div>
+  <div id="pTxt" hidden><textarea id="txt" placeholder="Paste text"></textarea></div>
+  <div class="row">
+    <label class="chip"><input type="checkbox" value="eu" checked> EU</label>
+    <label class="chip"><input type="checkbox" value="ca" checked> California</label>
+    <label class="chip"><input type="checkbox" value="in" checked> India</label>
+    <label class="chip"><input type="checkbox" value="kr" checked> Korea</label>
+    <label class="chip"><input type="checkbox" id="deepfake"> Realistic / depicts real people</label>
+    <button id="go" type="button">Check</button>
+  </div>
+</div>
+<div id="out"></div>
+<p><small>Files are processed and discarded; only a verification event is logged. Absence of a mark does not prove content is authentic. Engineering guidance, not legal advice.</small></p>
+</main>
+<script>
+const $=s=>document.querySelector(s);let mode="image",picked=null;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+$("#tImg").onclick=()=>{mode="image";$("#pImg").hidden=false;$("#pTxt").hidden=true;$("#tImg").classList.add("sel");$("#tTxt").classList.remove("sel")};
+$("#tTxt").onclick=()=>{mode="text";$("#pImg").hidden=true;$("#pTxt").hidden=false;$("#tTxt").classList.add("sel");$("#tImg").classList.remove("sel")};
+const drop=$("#drop");drop.onclick=()=>$("#file").click();
+$("#file").onchange=e=>{picked=e.target.files[0];drop.textContent=picked?picked.name:"Drop an image here"};
+drop.ondragover=e=>{e.preventDefault();drop.classList.add("on")};drop.ondragleave=()=>drop.classList.remove("on");
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove("on");picked=e.dataTransfer.files[0];drop.textContent=picked.name};
+$("#go").onclick=async()=>{
+  const fd=new FormData();
+  fd.append("jurisdictions",[...document.querySelectorAll('.chip input[value]:checked')].map(i=>i.value).join(","));
+  fd.append("deepfake",$("#deepfake").checked);
+  if(mode==="image"){if(!picked)return;fd.append("file",picked)}else{if(!$("#txt").value.trim())return;fd.append("text",$("#txt").value)}
+  $("#out").innerHTML='<div class="card">Checking…</div>';
+  try{const r=await fetch("/v1/verify",{method:"POST",body:fd});const j=await r.json();
+    if(!r.ok)throw new Error(j.detail||r.status);render(j)}catch(e){$("#out").innerHTML=`<div class="card bad">${esc(e.message)}</div>`}
+};
+function render(j){
+  const cls=j.ai_generated?"ok":"warn";
+  let h=`<div class="card"><div class="verdict ${cls}">${esc(j.verdict)}</div>`;
+  if(j.record)h+=`<p>Made by <b>${esc(j.record.provider)}</b> with ${esc(j.record.system)} ${esc(j.record.system_version)} on ${esc(j.record.created_at)}. ID <code>${esc(j.record.content_id)}</code></p>`;
+  h+=`<table><tr><th>Layer</th><th>Status</th></tr>`+Object.entries(j.layers).map(([k,v])=>`<tr><td>${esc(k.replaceAll("_"," "))}</td><td>${esc(v)}</td></tr>`).join("")+`</table></div>`;
+  if(j.compliance){const c=j.compliance;
+    h+=`<div class="card"><div class="verdict ${c.ok?"ok":"bad"}">${c.ok?"Meets the file-level requirements checked":"Missing required marking"}</div><table><tr><th>Control</th><th>Status</th><th>Required by</th></tr>`+
+    c.items.map(i=>`<tr><td>${esc(i.control.replaceAll("_"," "))}</td><td class="${i.pass===false?"bad":i.pass?"ok":"warn"}">${esc(i.status)}</td><td>${esc(i.required_by.join(", "))}${i.note?`<br><small>${esc(i.note)}</small>`:""}</td></tr>`).join("")+
+    `</table><p><small>Rules: ${c.rules.map(r=>esc(r.law+" — "+r.status)).join("<br>")}</small></p></div>`}
+  $("#out").innerHTML=h;
+}
+</script>
+</body></html>
