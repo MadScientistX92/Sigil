@@ -3,6 +3,8 @@
   python -m sigil check photo.png --jurisdictions eu,ca --deepfake
   python -m sigil mark in.png out.png --provider "Acme AI" --system acme-img --version 2.1
   python -m sigil rules --modality text
+  python -m sigil keys create --org acme --name prod      # prints the key once
+  python -m sigil keys list [--org acme] | keys revoke key_ab12cd34ef56 | keys usage --org acme
 """
 from __future__ import annotations
 
@@ -42,8 +44,18 @@ def main(argv=None):
             s.add_argument("--label", choices=["auto", "on", "off"], default="auto")
         if name == "rules":
             s.add_argument("--modality", default="image", choices=policy.MODALITIES)
+    k = sub.add_parser("keys")
+    k.add_argument("action", choices=["create", "list", "revoke", "usage"])
+    k.add_argument("key_id", nargs="?")
+    k.add_argument("--org")
+    k.add_argument("--name", default="")
+    k.add_argument("--period")
+    k.add_argument("--data", default="data")
     a = p.parse_args(argv)
     sg = Sigil(a.data)
+
+    if a.cmd == "keys":
+        return _keys(sg, a)
 
     if a.cmd == "rules":
         ctx = _ctx(a, a.modality)
@@ -84,6 +96,31 @@ def main(argv=None):
         print(f"  {col}{i['status']:16}{X} {i['control']:22} <- {', '.join(i['required_by'])}")
     print("\nEngineering guidance, not legal advice.")
     return 0 if c["ok"] else 1
+
+
+def _keys(sg, a):
+    acc = sg.accounts
+    if a.action == "create":
+        if not a.org:
+            print("--org is required", file=sys.stderr)
+            return 2
+        k = acc.create_key(a.org, a.name)
+        sg.registry.audit(k["org"], "key.create", detail={"key_id": k["id"], "name": a.name})
+        print(f"{G}Created{X} {k['id']} for org {k['org']}\n{B}{k['key']}{X}\nStore it now; only its hash is kept.")
+    elif a.action == "list":
+        print(json.dumps(acc.list_keys(a.org), indent=2))
+    elif a.action == "revoke":
+        if not a.key_id or not acc.revoke_key(a.key_id):
+            print("no active key with that id", file=sys.stderr)
+            return 1
+        sg.registry.audit("admin", "key.revoke", detail={"key_id": a.key_id})
+        print(f"Revoked {a.key_id}")
+    else:
+        if not a.org:
+            print("--org is required", file=sys.stderr)
+            return 2
+        print(json.dumps(acc.usage(a.org, a.period), indent=2))
+    return 0
 
 
 if __name__ == "__main__":

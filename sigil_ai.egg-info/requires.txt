@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pillow
+numpy
+PyWavelets
+opencv-python-headless
+c2pa-python>=0.38
+cryptography
+python-multipart
+
+[dev]
+pytest
+httpx

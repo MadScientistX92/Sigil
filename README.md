@@ -54,11 +54,32 @@ python -m sigil rules --modality text
 | POST | `/v1/verify` | public | Provenance + watermark + registry check, compliance report per jurisdiction |
 | GET | `/v1/rules` | public | Which controls apply for a modality, jurisdictions, deepfake flag and user count |
 | GET | `/v1/evidence` | key | Compliance evidence export (all marks + audit log) |
+| POST / GET | `/v1/keys` | key or admin | Create an API key (shown once) / list your org's keys |
+| DELETE | `/v1/keys/{id}` | key or admin | Revoke a key |
+| GET | `/v1/usage?period=YYYY-MM` | key | Metered usage for your org this month (`mark.image`, `mark.text`, `verify.image`, `verify.text`) |
 | GET | `/verify`, `/v/{id}` | public | Hosted detector page, public provenance record |
+
+### API keys, rate limits and usage
+
+Keys live in the database, stored as SHA-256 hashes. Create the first one with the CLI or the admin token:
+
+```bash
+python -m sigil keys create --org acme --name prod          # prints sk_sigil_... once
+SIGIL_ADMIN_TOKEN=... uvicorn sigil.api:app                  # then POST /v1/keys {"org": "acme"} with that token
+```
+
+An org key can create, list and revoke keys for its own org only. `SIGIL_API_KEYS` (default `dev:default`) still
+works for local bootstrap; set it to an empty string in production.
+
+`/v1/verify` stays free and keyless but is rate limited per client IP (`SIGIL_VERIFY_RATE_ANON`, default 30/min).
+Requests with a key get their own bucket (`SIGIL_VERIFY_RATE_KEYED`, default 600/min). Over the limit you get
+`429` with `Retry-After`. Behind a proxy, set `SIGIL_TRUST_PROXY=1` so the real client IP from `X-Forwarded-For` is used.
 
 ## Honest limits
 
 - The watermark does not survive cropping, rescaling or a deliberate removal attack. That's why it's paired with signed metadata and the registry. Rescale-robust and audio/video marking are on the roadmap.
+- Rate limits are kept in memory per process: they reset on restart and are not shared across replicas. Fine for one instance; multi-instance hosting needs a shared store (e.g. Redis). Keyless `/v1/verify` is limited per IP, so clients behind one NAT share a bucket and someone rotating IPs can exceed it.
+- Usage metering counts successful requests per org per month in SQLite. It is the data billing will need, not billing itself.
 - Development builds sign with a self-generated certificate, so C2PA validators report `signingCredential.untrusted`. Production needs a certificate from a C2PA-trusted CA.
 - Rules are engineering guidance with sources in `sigil/policy.py`, versioned so audit logs record what was applied. **Not legal advice.** California's pending SB 1000 may change SB 942.
 

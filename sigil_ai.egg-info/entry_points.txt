@@ -1,0 +1,2 @@
+[console_scripts]
+sigil = sigil.__main__:main

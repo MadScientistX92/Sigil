@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from . import policy, provenance, watermark
 from .policy import C2PA, DETECTOR, IDENTIFIER, NOTICE, TEXT_MARK, VISIBLE, WATERMARK
+from .accounts import Accounts
 from .registry import Registry, text_fingerprint
 
 PUBLIC_KEY = b"sigil-public-v1"   # shared detection key so any verifier can find Sigil marks
@@ -91,6 +92,7 @@ class Sigil:
     def __init__(self, data_dir: str | Path = "data", public_url: str = "http://localhost:8000"):
         self.data_dir = Path(data_dir)
         self.registry = Registry(self.data_dir / "sigil.db")
+        self.accounts = Accounts(self.registry.db)
         self.cert_dir = self.data_dir / "certs"
         self.public_url = public_url.rstrip("/")
 
