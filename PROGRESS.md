@@ -12,11 +12,17 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
   token bootstrap), per-IP / per-key token-bucket rate limit on `/v1/verify` (429 + Retry-After), monthly usage
   metering per org (`/v1/usage`). Fixed `pip install` (setuptools found two top-level packages, `sigil` and `site`).
   18 passing tests
+- **2026-11-13**: JS/TS SDK in `sdk/js` (`@sigil-ai/sdk`, zero deps, fetch-based: Node 18+, Next.js Node/Edge,
+  browsers). Covers mark image/text, verify (file or text), rules, record, usage, evidence, keys; typed
+  `SigilError` with `retryAfter` on 429. Unit tests (fake fetch) + end-to-end test against a live uvicorn, both
+  driven from `pytest` (`tests/test_js_sdk.py`, skipped without node/tsc). `"private": true` so it can't be
+  published by accident. 20 passing tests
 
 ## Next (in priority order)
 1. Hosted public detector (free tier on Fly.io, Render or Hugging Face Spaces) so `/verify` has a public URL
 2. Production C2PA signing certificate from a C2PA-trusted CA (dev cert shows as "untrusted")
-3. JS/TS SDK (one-line integration for Next.js apps); publishing to npm needs Maddy's npm account
+3. Publish the JS SDK to npm: needs Maddy's npm account and a decision on the package name/scope
+   (`@sigil-ai/sdk` is a placeholder); then drop `"private": true` in `sdk/js/package.json`
 4. Rescale- and crop-tolerant watermark (sync template)
 5. Video (per-frame mark + C2PA for MP4), then audio watermark (AudioSeal, MIT)
 6. Billing (Stripe metered, reads the `usage` table); needs Maddy's Stripe account

@@ -1,0 +1,19 @@
+{
+  "name": "@sigil-ai/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JS/TS client for the Sigil AI-content labeling API (EU AI Act Art. 50, California SB 942, India IT Rules, Korea AI Basic Act).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "devDependencies": { "typescript": ">=5.4" }
+}

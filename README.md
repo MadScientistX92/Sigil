@@ -37,6 +37,14 @@ curl -s -H "Authorization: Bearer dev" -F file=@gen.png -F provider="Acme AI" -F
 curl -s -F file=@marked.png -F jurisdictions=eu http://localhost:8000/v1/verify | jq .compliance
 ```
 
+JavaScript / TypeScript (Next.js, Node 18+, Edge, browsers), see [`sdk/js`](sdk/js/README.md):
+
+```ts
+import { Sigil } from "@sigil-ai/sdk";
+const sigil = new Sigil({ apiKey: process.env.SIGIL_API_KEY, baseUrl: process.env.SIGIL_URL });
+const { data, receipt } = await sigil.markImage(png, { provider: "Acme AI", system: "acme-img" });
+```
+
 CLI:
 
 ```bash
@@ -79,6 +87,7 @@ Requests with a key get their own bucket (`SIGIL_VERIFY_RATE_KEYED`, default 600
 
 - The watermark does not survive cropping, rescaling or a deliberate removal attack. That's why it's paired with signed metadata and the registry. Rescale-robust and audio/video marking are on the roadmap.
 - Rate limits are kept in memory per process: they reset on restart and are not shared across replicas. Fine for one instance; multi-instance hosting needs a shared store (e.g. Redis). Keyless `/v1/verify` is limited per IP, so clients behind one NAT share a bucket and someone rotating IPs can exceed it.
+- The JS/TS SDK is not published to npm yet; install it from `sdk/js`. It is a thin client: marking and detection run on the Sigil server, not in the browser or at the edge.
 - Usage metering counts successful requests per org per month in SQLite. It is the data billing will need, not billing itself.
 - Development builds sign with a self-generated certificate, so C2PA validators report `signingCredential.untrusted`. Production needs a certificate from a C2PA-trusted CA.
 - Rules are engineering guidance with sources in `sigil/policy.py`, versioned so audit logs record what was applied. **Not legal advice.** California's pending SB 1000 may change SB 942.
@@ -86,7 +95,7 @@ Requests with a key get their own bucket (`SIGIL_VERIFY_RATE_KEYED`, default 600
 ## Run tests
 
 ```bash
-pytest -q
+pytest -q          # includes the JS SDK tests when node + typescript are installed (skipped otherwise)
 ```
 
 Apache-2.0.
