@@ -34,10 +34,10 @@ def test_rules_eu_text_requires_marking():
     assert policy.TEXT_MARK in need and "eu.art50.2" in need[policy.TEXT_MARK]
 
 
-def test_ca_threshold():
+def test_ca_no_threshold_after_sb1000():
     small = policy.applicable_rules(policy.Context("image", ("ca",), monthly_users=10))
     big = policy.applicable_rules(policy.Context("image", ("ca",), monthly_users=2_000_000))
-    assert not small and big[0].id == "ca.sb942"
+    assert small[0].id == "ca.sb942" and big[0].id == "ca.sb942"
 
 
 def test_grace_status():

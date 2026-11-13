@@ -17,6 +17,7 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
   `SigilError` with `retryAfter` on 429. Unit tests (fake fetch) + end-to-end test against a live uvicorn, both
   driven from `pytest` (`tests/test_js_sdk.py`, skipped without node/tsc). `"private": true` so it can't be
   published by accident. 20 passing tests
+- **2026-11-13**: ruleset 2026-11-13. California SB 1000 (signed Sept 2026, effective immediately) removed SB 942's 1M monthly-user threshold and replaced the AI detection tool with a disclosure verification tool; `ca.sb942` updated, threshold test flipped, README and site table updated. Sources: Covington (Inside Privacy, 2026-10-06), WilmerHale (2026-10-05). Bill text not read yet; penalty and operative date unchanged pending a check. EU, India, Korea: no rule changes found.
 
 ## Next (in priority order)
 1. Hosted public detector (free tier on Fly.io, Render or Hugging Face Spaces) so `/verify` has a public URL

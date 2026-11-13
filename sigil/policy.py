@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import date
 
-RULESET_VERSION = "2026-11-01"
+RULESET_VERSION = "2026-11-13"
 
 # Controls Sigil can apply or check
 C2PA = "c2pa_manifest"            # signed, machine-readable provenance metadata
@@ -96,18 +96,21 @@ RULES: tuple[Rule, ...] = (
     Rule(
         id="ca.sb942",
         jurisdiction="ca",
-        law="California AI Transparency Act (SB 942, as amended by AB 853)",
+        law="California AI Transparency Act (SB 942, as amended by AB 853 and SB 1000)",
         who="provider",
         modalities=("image", "video", "audio"),
         controls=(C2PA, WATERMARK, IDENTIFIER, DETECTOR, VISIBLE),
         effective=date(2026, 8, 2),
-        min_monthly_users=1_000_000,
         summary=("Covered providers must embed a latent disclosure (provider, system and version, "
                  "timestamp, unique ID), offer users an optional manifest (visible) disclosure, and "
-                 "run a free public AI detection tool. Licensees must keep the latent disclosure intact."),
-        applies_if="Your generative AI system has 1M+ monthly users and is publicly accessible in California. Pending SB 1000 may remove the threshold.",
+                 "provide a free disclosure verification tool. Licensees must keep the latent disclosure "
+                 "intact. SB 1000 (signed Sept 2026, effective immediately) removed the 1M monthly user "
+                 "threshold and replaced the AI detection tool with a disclosure verification tool."),
+        applies_if="Your generative AI system is publicly accessible in California (no user threshold since SB 1000).",
         penalty="USD 5,000 per violation per day.",
-        sources=("https://calmatters.digitaldemocracy.org/bills/ca_202520260ab853",),
+        sources=("https://calmatters.digitaldemocracy.org/bills/ca_202520260ab853",
+                 "https://www.insideprivacy.com/artificial-intelligence/california-governor-signs-over-20-ai-related-bills-into-law/",
+                 "https://www.wilmerhale.com/en/insights/blogs/wilmerhale-privacy-and-cybersecurity-law/20261002-california-finalizes-next-wave-of-state-ai-and-privacy-regulation"),
     ),
     Rule(
         id="in.itrules.sgi",
