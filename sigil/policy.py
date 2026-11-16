@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import date
 
-RULESET_VERSION = "2026-11-13"
+RULESET_VERSION = "2026-11-16"
 
 # Controls Sigil can apply or check
 C2PA = "c2pa_manifest"            # signed, machine-readable provenance metadata
@@ -99,16 +99,23 @@ RULES: tuple[Rule, ...] = (
         law="California AI Transparency Act (SB 942, as amended by AB 853 and SB 1000)",
         who="provider",
         modalities=("image", "video", "audio"),
-        controls=(C2PA, WATERMARK, IDENTIFIER, DETECTOR, VISIBLE),
+        controls=(C2PA, WATERMARK, IDENTIFIER, DETECTOR),
         effective=date(2026, 8, 2),
-        summary=("Covered providers must embed a latent disclosure (provider, system and version, "
-                 "timestamp, unique ID), offer users an optional manifest (visible) disclosure, and "
-                 "provide a free disclosure verification tool. Licensees must keep the latent disclosure "
-                 "intact. SB 1000 (signed Sept 2026, effective immediately) removed the 1M monthly user "
-                 "threshold and replaced the AI detection tool with a disclosure verification tool."),
+        summary=("Covered providers must embed a latent disclosure in image, video and audio they create "
+                 "or alter (beyond minor modification): provider name, system name and version, time and "
+                 "date, a unique identifier and whether the content was created or altered, permanent or "
+                 "extraordinarily difficult to remove and interoperable with industry standards. They must "
+                 "also provide a free disclosure verification tool (upload or URL, API-invokable; a "
+                 "compliant third-party tool is allowed). SB 1000 (Ch. 861, Stats. 2026, signed "
+                 "2026-09-30, effective immediately) removed the 1M monthly user threshold and the "
+                 "requirement to offer a manifest (visible) disclosure, replaced the AI detection tool "
+                 "with the disclosure verification tool, and replaced license revocation with a "
+                 "72-hour/96-hour licensee notice-and-cure process."),
         applies_if="Your generative AI system is publicly accessible in California (no user threshold since SB 1000).",
-        penalty="USD 5,000 per violation per day.",
-        sources=("https://calmatters.digitaldemocracy.org/bills/ca_202520260ab853",
+        penalty="USD 5,000 per violation, each day a separate violation (civil action by the Attorney General, a city attorney or county counsel).",
+        sources=("https://calmatters.digitaldemocracy.org/bills/ca_202520260sb1000",
+                 "https://www.mofo.com/resources/insights/261001-california-revamps-ai-transparency-requirements",
+                 "https://calmatters.digitaldemocracy.org/bills/ca_202520260ab853",
                  "https://www.insideprivacy.com/artificial-intelligence/california-governor-signs-over-20-ai-related-bills-into-law/",
                  "https://www.wilmerhale.com/en/insights/blogs/wilmerhale-privacy-and-cybersecurity-law/20261002-california-finalizes-next-wave-of-state-ai-and-privacy-regulation"),
     ),

@@ -40,6 +40,12 @@ def test_ca_no_threshold_after_sb1000():
     assert small[0].id == "ca.sb942" and big[0].id == "ca.sb942"
 
 
+def test_ca_no_visible_label_after_sb1000():
+    need = policy.required_controls(policy.Context("image", ("ca",)))
+    assert policy.VISIBLE not in need
+    assert policy.DETECTOR in need and policy.C2PA in need
+
+
 def test_grace_status():
     r = next(r for r in policy.RULES if r.id == "eu.art50.2")
     assert "grace period" in policy.rule_status(r, date(2026, 11, 1))

@@ -7,7 +7,7 @@ AI-content labeling became law in 2026:
 | Jurisdiction | Law | In force | What it asks for |
 |---|---|---|---|
 | EU | AI Act, Article 50 | 2 Aug 2026 (systems already on the market: **2 Dec 2026**) | Machine-readable marking of AI image, video, audio and text; disclose deepfakes; tell users they're talking to AI |
-| California | AI Transparency Act (SB 942 + AB 853 + SB 1000) | 2 Aug 2026 | Latent disclosure, optional visible disclosure, free disclosure verification tool (no user threshold since SB 1000) |
+| California | AI Transparency Act (SB 942 + AB 853 + SB 1000) | 2 Aug 2026 | Latent disclosure and a free disclosure verification tool (no user threshold and no manifest/visible disclosure requirement since SB 1000) |
 | India | IT Rules amendment on synthetic content | 20 Feb 2026 | Prominent labels plus permanent metadata or unique IDs on realistic AI media |
 | South Korea | AI Basic Act | 22 Jan 2026 (fines after the grace period, Jan 2027) | Advance notice, watermark on AI output, visible label on deepfakes |
 
@@ -19,7 +19,7 @@ The big model labs now mark their own outputs. **Your app still has its own obli
 2. **Invisible watermark** carrying the content ID. It survives JPEG down to quality 50, WebP and brightness changes, so the file stays traceable after the metadata is stripped.
 3. **Visible label** where a rule requires one (deepfakes in the EU, India and Korea), in 8 languages.
 4. **Registry + audit log**, so you can hand a compliance evidence export to an enterprise buyer or a regulator.
-5. **A hosted public detector** (`/verify`) that anyone can use. It's the free detection tool SB 942 requires.
+5. **A hosted public detector** (`/verify`) that anyone can use. It's the free disclosure verification tool California's SB 942 requires (as amended by SB 1000).
 
 Text gets a logged fingerprint that survives light edits, plus optional disclosure lines. Statistical text watermarking has to happen at generation time, so Sigil tells you to turn on your model provider's text watermark as the robust layer.
 
@@ -90,7 +90,7 @@ Requests with a key get their own bucket (`SIGIL_VERIFY_RATE_KEYED`, default 600
 - The JS/TS SDK is not published to npm yet; install it from `sdk/js`. It is a thin client: marking and detection run on the Sigil server, not in the browser or at the edge.
 - Usage metering counts successful requests per org per month in SQLite. It is the data billing will need, not billing itself.
 - Development builds sign with a self-generated certificate, so C2PA validators report `signingCredential.untrusted`. Production needs a certificate from a C2PA-trusted CA.
-- Rules are engineering guidance with sources in `sigil/policy.py`, versioned so audit logs record what was applied. **Not legal advice.** California's SB 1000 (signed Sept 2026) removed SB 942's 1M-user threshold.
+- Rules are engineering guidance with sources in `sigil/policy.py`, versioned so audit logs record what was applied. **Not legal advice.** California's SB 1000 (signed Sept 2026) removed SB 942's 1M-user threshold and its manifest (visible) disclosure requirement.
 
 ## Run tests
 
