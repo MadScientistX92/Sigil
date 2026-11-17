@@ -16,7 +16,7 @@ The big model labs now mark their own outputs. **Your app still has its own obli
 ## What Sigil does to each file
 
 1. **Signed C2PA manifest** declaring AI origin (IPTC `trainedAlgorithmicMedia`), plus provider, system, version, timestamp and content ID: the "latent disclosure".
-2. **Invisible watermark** carrying the content ID. It survives JPEG down to quality 50, WebP and brightness changes, so the file stays traceable after the metadata is stripped.
+2. **Invisible watermark** carrying the content ID (~42 dB PSNR). It survives JPEG down to quality 50, WebP, brightness changes, cropping and rescaling (0.5x to 2x, also combined with a crop and re-encode), so the file stays traceable after the metadata is stripped.
 3. **Visible label** where a rule requires one (deepfakes in the EU, India and Korea), in 8 languages.
 4. **Registry + audit log**, so you can hand a compliance evidence export to an enterprise buyer or a regulator.
 5. **A hosted public detector** (`/verify`) that anyone can use. It's the free disclosure verification tool California's SB 942 requires (as amended by SB 1000).
@@ -85,7 +85,7 @@ Requests with a key get their own bucket (`SIGIL_VERIFY_RATE_KEYED`, default 600
 
 ## Honest limits
 
-- The watermark does not survive cropping, rescaling or a deliberate removal attack. That's why it's paired with signed metadata and the registry. Rescale-robust and audio/video marking are on the roadmap.
+- The image watermark (`sigil-dctqim-v2`) survives crops and uniform rescales between 0.5x and 2x, but not rotation, flips, aspect-changing (non-uniform) resizes, scales outside 0.5x-2x, crops that leave less than roughly 160 px per side, heavy downscales of already small images (e.g. crop + 0.5x on a 512 px image), or a deliberate removal attack. That's why it's paired with signed metadata and the registry. Detection searches scale, so verifying a resized image takes ~0.1-0.4 s instead of milliseconds. Images marked before v2 (`sigil-dwtdct-v1`) still verify but keep v1's limits (no crop or rescale). Audio and video marking are on the roadmap.
 - Rate limits are kept in memory per process: they reset on restart and are not shared across replicas. Fine for one instance; multi-instance hosting needs a shared store (e.g. Redis). Keyless `/v1/verify` is limited per IP, so clients behind one NAT share a bucket and someone rotating IPs can exceed it.
 - The JS/TS SDK is not published to npm yet; install it from `sdk/js`. It is a thin client: marking and detection run on the Sigil server, not in the browser or at the edge.
 - Usage metering counts successful requests per org per month in SQLite. It is the data billing will need, not billing itself.

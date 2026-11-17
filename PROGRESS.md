@@ -19,16 +19,25 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
   published by accident. 20 passing tests
 - **2026-11-13**: ruleset 2026-11-13. California SB 1000 (signed Sept 2026, effective immediately) removed SB 942's 1M monthly-user threshold and replaced the AI detection tool with a disclosure verification tool; `ca.sb942` updated, threshold test flipped, README and site table updated. Sources: Covington (Inside Privacy, 2026-10-06), WilmerHale (2026-10-05). Bill text not read yet; penalty and operative date unchanged pending a check. EU, India, Korea: no rule changes found.
 - **2026-11-16**: ruleset 2026-11-16. Read SB 1000's chaptered text (Ch. 861, Stats. 2026, signed 2026-09-30, urgency statute): it also removed the requirement to offer a manifest (visible) disclosure, so `visible_label` is no longer a California control (California images were getting a visible label by default). `ca.sb942` summary now lists the full latent-disclosure contents, the verification-tool requirements (third-party tool allowed) and the licensee notice-and-cure process; penalty and Aug 2 2026 date confirmed. New test `test_ca_no_visible_label_after_sb1000`; README and site updated. Sources: SB 1000 text on Digital Democracy (CalMatters), MoFo (2026-10-01). EU, India, Korea: no rule changes found (EU Art. 50 unchanged by the AI omnibus per secondary sources; Code of Practice final status unconfirmed).
+- **2026-11-17**: crop- and rescale-tolerant image watermark `sigil-dctqim-v2` (now used for all new marks).
+  Dithered QIM on each 8x8 block's (1,1) DCT coefficient in the pixel domain, bits laid out in a periodic 8x16-block
+  tile (64 payload + 64 keyed sync cells). Detector re-finds the 8-px grid from the QIM lattice (no key needed),
+  resolves the tile phase from the sync cells, and searches scale 0.5x-2x (coarse local-alignment pass on a central
+  window, then a fine pass). Survives crop, 0.5x-2x rescale, crop + rescale + JPEG 70, JPEG 50, WebP, brightness;
+  ~42 dB PSNR. v1 kept as a detection fallback so old marks still verify. Not covered: rotation, flips,
+  aspect-changing resizes, crops under ~160 px. Verify on a resized image now costs ~0.1-0.4 s. 18 new tests in
+  `tests/test_watermark.py`. 39 passing tests
 
 ## Next (in priority order)
 1. Hosted public detector (free tier on Fly.io, Render or Hugging Face Spaces) so `/verify` has a public URL
 2. Production C2PA signing certificate from a C2PA-trusted CA (dev cert shows as "untrusted")
 3. Publish the JS SDK to npm: needs Maddy's npm account and a decision on the package name/scope
    (`@sigil-ai/sdk` is a placeholder); then drop `"private": true` in `sdk/js/package.json`
-4. Rescale- and crop-tolerant watermark (sync template)
-5. Video (per-frame mark + C2PA for MP4), then audio watermark (AudioSeal, MIT)
-6. Billing (Stripe metered, reads the `usage` table); needs Maddy's Stripe account
-7. Follow-ups to keys/metering: shared rate-limit store (Redis) for multi-instance hosting; per-plan quotas
+4. Video (per-frame mark + C2PA for MP4), then audio watermark (AudioSeal, MIT)
+5. Billing (Stripe metered, reads the `usage` table); needs Maddy's Stripe account
+6. Follow-ups to keys/metering: shared rate-limit store (Redis) for multi-instance hosting; per-plan quotas
+7. Watermark follow-ups: rotation / aspect-change tolerance (estimate the tile lattice from its autocorrelation
+   instead of a 1-D scale search); skip the slow v1 fallback on very large images once v1 marks age out
 
 Priorities 4-7 wait for design-partner feedback. Build what paying users ask for first.
 

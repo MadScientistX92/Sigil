@@ -193,7 +193,7 @@ Compliance (eu, ca, in, kr): <span class="ok">OK</span></pre>
     </div>
     <div class="layers">
       <div class="layer"><span class="n">1 · LABEL</span><h3>Visible label</h3><p>Added only where a rule requires one, such as deepfakes in the EU, India and Korea. Eight languages.</p><span class="tag">eu.art50.4 · in.itrules · kr.aibasic</span></div>
-      <div class="layer"><span class="n">2 · WATERMARK</span><h3>Invisible watermark</h3><p>Carries the content ID in the pixels, so the file stays traceable after metadata is stripped.</p><span class="tag">sigil-dwtdct-v1 · ~42 dB PSNR</span></div>
+      <div class="layer"><span class="n">2 · WATERMARK</span><h3>Invisible watermark</h3><p>Carries the content ID in the pixels, so the file stays traceable after metadata is stripped.</p><span class="tag">sigil-dctqim-v2 · ~42 dB PSNR · survives crop + 0.5–2x rescale</span></div>
       <div class="layer"><span class="n">3 · SIGN</span><h3>C2PA manifest</h3><p>Signed metadata declaring AI origin, with provider, system, version, timestamp and ID.</p><span class="tag">IPTC trainedAlgorithmicMedia</span></div>
       <div class="layer"><span class="n">4 · LOG</span><h3>Registry and evidence</h3><p>Every mark and check lands in an audit log you can export for a buyer's questionnaire or a regulator.</p><span class="tag">GET /v1/evidence</span></div>
     </div>
