@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from . import policy
 from .accounts import RateLimiter
+from . import video
 from .core import MarkOptions, Sigil
 
 MAX_BYTES = 25 * 1024 * 1024
@@ -128,6 +129,30 @@ async def mark_image(file: UploadFile = File(...), provider: str = Form(...), sy
         "X-Sigil-Receipt": base64.b64encode(rj.encode()).decode()})
 
 
+@app.post("/v1/mark/video")
+async def mark_video(file: UploadFile = File(...), provider: str = Form(...), system: str = Form(...),
+                     system_version: str = Form(""), jurisdictions: str = Form("eu,ca,in,kr"),
+                     deepfake: bool = Form(False), monthly_users: int = Form(0),
+                     visible_label: str = Form("auto"), label_lang: str = Form("en"),
+                     composite: bool = Form(False), org: str = Depends(org_for)):
+    if not video.available():
+        raise HTTPException(501, "video support is not installed on this server (needs ffmpeg)")
+    data = await _read(file)
+    opts = MarkOptions(provider=provider, system=system, system_version=system_version, org=org,
+                       jurisdictions=_juris(jurisdictions), deepfake=deepfake, monthly_users=monthly_users,
+                       visible_label=None if visible_label == "auto" else visible_label.lower() == "true",
+                       label_lang=label_lang, composite=composite)
+    try:
+        out, receipt = sigil.mark_video(data, opts)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    sigil.accounts.meter(org, "mark.video")
+    rj = json.dumps(receipt.to_dict())
+    return Response(out, media_type="video/mp4", headers={
+        "X-Sigil-Content-Id": receipt.content_id,
+        "X-Sigil-Receipt": base64.b64encode(rj.encode()).decode()})
+
+
 class TextIn(BaseModel):
     text: str
     provider: str
@@ -162,6 +187,15 @@ async def verify(request: Request, response: Response, file: UploadFile | None =
     js = _juris(jurisdictions)
     if file is not None:
         data = await _read(file)
+        if video.is_video(data):
+            if not video.available():
+                raise HTTPException(501, "video support is not installed on this server (needs ffmpeg)")
+            try:
+                rep = sigil.verify_video(data, policy.Context("video", js, deepfake, monthly_users))
+            except ValueError as e:
+                raise HTTPException(422, f"could not read video: {e}")
+            sigil.accounts.meter(org or "public", "verify.video")
+            return rep
         try:
             rep = sigil.verify_image(data, policy.Context("image", js, deepfake, monthly_users))
         except Exception as e:

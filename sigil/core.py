@@ -5,12 +5,13 @@ import datetime as dt
 import glob
 import hashlib
 import io
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import policy, provenance, watermark
+from . import policy, provenance, video, watermark
 from .policy import C2PA, DETECTOR, IDENTIFIER, NOTICE, TEXT_MARK, VISIBLE, WATERMARK
 from .accounts import Accounts
 from .registry import Registry, text_fingerprint
@@ -43,20 +44,25 @@ def _font(size: int, text: str):
     return ImageFont.load_default(size=size)
 
 
-def add_visible_label(img: Image.Image, text: str) -> Image.Image:
-    img = img.convert("RGBA")
-    w, h = img.size
-    size = max(12, int(min(w, h) * 0.035))
-    font = _font(size, text)
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+def label_overlay(size: tuple[int, int], text: str) -> Image.Image:
+    """Transparent RGBA layer with the AI label badge in the bottom-left corner."""
+    w, h = size
+    fsize = max(12, int(min(w, h) * 0.035))
+    font = _font(fsize, text)
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
     tb = d.textbbox((0, 0), text, font=font)
-    pad = size // 2
+    pad = fsize // 2
     bw, bh = tb[2] - tb[0] + pad * 2, tb[3] - tb[1] + pad * 2
     x, y = pad, h - bh - pad
     d.rounded_rectangle((x, y, x + bw, y + bh), radius=bh // 3, fill=(15, 15, 20, 190))
     d.text((x + pad - tb[0], y + pad - tb[1]), text, font=font, fill=(255, 255, 255, 245))
-    return Image.alpha_composite(img, overlay)
+    return overlay
+
+
+def add_visible_label(img: Image.Image, text: str, overlay: Image.Image | None = None) -> Image.Image:
+    img = img.convert("RGBA")
+    return Image.alpha_composite(img, overlay if overlay is not None else label_overlay(img.size, text))
 
 
 @dataclass
@@ -124,23 +130,53 @@ class Sigil:
         else:
             img.save(buf, fmt, **({"quality": 92} if fmt == "WEBP" else {}))
 
+        out, cid_hex = self._sign_and_record(buf.getvalue(), fmt, "image", cid, watermark.SCHEME, opts, applied)
+        return out, self._receipt(cid_hex, "image", ctx, applied)
+
+    def _sign_and_record(self, data: bytes, fmt: str, modality: str, cid: int, scheme: str,
+                         opts: MarkOptions, applied: list[str]) -> tuple[bytes, str]:
         cid_hex = watermark.id_to_hex(cid)
         created = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         disclosure = {
             "provider": opts.provider, "system": opts.system, "system_version": opts.system_version,
             "created": created, "content_id": cid_hex, "ai_generated": True,
-            "watermark": watermark.SCHEME, "ruleset": policy.RULESET_VERSION,
+            "watermark": scheme, "ruleset": policy.RULESET_VERSION,
             "jurisdictions": list(opts.jurisdictions), "verify": f"{self.public_url}/v/{cid_hex}",
         }
-        out = provenance.sign(buf.getvalue(), fmt, disclosure, self.cert_dir, composite=opts.composite)
+        out = provenance.sign(data, fmt, disclosure, self.cert_dir, composite=opts.composite)
         applied.append(C2PA)
-
         self.registry.record(
-            content_id=cid_hex, org=opts.org, modality="image", sha256=hashlib.sha256(out).hexdigest(),
+            content_id=cid_hex, org=opts.org, modality=modality, sha256=hashlib.sha256(out).hexdigest(),
             provider=opts.provider, system=opts.system, system_version=opts.system_version,
             created_at=created, jurisdictions=opts.jurisdictions, controls=applied,
             ruleset=policy.RULESET_VERSION)
-        return out, self._receipt(cid_hex, "image", ctx, applied)
+        return out, cid_hex
+
+    def mark_video(self, data: bytes, opts: MarkOptions) -> tuple[bytes, Receipt]:
+        """Watermark every frame, re-encode to H.264 MP4 (audio kept), sign a C2PA manifest."""
+        ctx = policy.Context("video", tuple(opts.jurisdictions), opts.deepfake, opts.monthly_users)
+        need = policy.required_controls(ctx)
+        applied = []
+        want_label = opts.visible_label if opts.visible_label is not None else VISIBLE in need
+        frame_fn = None
+        if want_label:
+            text = LABELS.get(opts.label_lang, LABELS["en"])
+            cache: dict = {}
+
+            def frame_fn(f: Image.Image) -> Image.Image:
+                if f.size not in cache:
+                    cache[f.size] = label_overlay(f.size, text)
+                return add_visible_label(f, text, cache[f.size])
+            applied.append(VISIBLE)
+        cid = watermark.new_content_id()
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = Path(tmp) / "in", Path(tmp) / "out.mp4"
+            src.write_bytes(data)
+            video.embed_file(src, dst, cid, PUBLIC_KEY, frame_fn)
+            encoded = dst.read_bytes()
+        applied += [WATERMARK, IDENTIFIER]
+        out, cid_hex = self._sign_and_record(encoded, "MP4", "video", cid, video.SCHEME, opts, applied)
+        return out, self._receipt(cid_hex, "video", ctx, applied)
 
     def mark_text(self, text: str, opts: MarkOptions, disclose: bool | None = None) -> tuple[str, Receipt]:
         ctx = policy.Context("text", tuple(opts.jurisdictions), opts.deepfake, opts.monthly_users)
@@ -181,6 +217,19 @@ class Sigil:
         img.load()
         c2 = provenance.read(data, fmt)
         wm = watermark.detect(img, PUBLIC_KEY)
+        return self._report(data, c2, wm, ctx)
+
+    def verify_video(self, data: bytes, ctx: policy.Context | None = None) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "in"
+            path.write_bytes(data)
+            wm = video.detect_file(path, PUBLIC_KEY)
+        c2 = provenance.read(data, "MP4") if data[4:8] == b"ftyp" else {
+            "present": False, "ai_generated": False, "issuer": None, "generator": None,
+            "valid_signature": None, "sigil": None, "validation": []}
+        return self._report(data, c2, wm, ctx)
+
+    def _report(self, data: bytes, c2: dict, wm: dict, ctx: policy.Context | None) -> dict:
         record = self.registry.get(wm["content_id"]) if wm["found"] else None
         record = record or self.registry.by_hash(hashlib.sha256(data).hexdigest())
         if not record and c2.get("sigil"):

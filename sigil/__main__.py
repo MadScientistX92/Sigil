@@ -2,6 +2,7 @@
 
   python -m sigil check photo.png --jurisdictions eu,ca --deepfake
   python -m sigil mark in.png out.png --provider "Acme AI" --system acme-img --version 2.1
+  python -m sigil mark clip.mov clip.mp4 --provider "Acme AI" --system acme-vid   # video: always H.264 MP4
   python -m sigil rules --modality text
   python -m sigil keys create --org acme --name prod      # prints the key once
   python -m sigil keys list [--org acme] | keys revoke key_ab12cd34ef56 | keys usage --org acme
@@ -13,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import policy
+from . import policy, video
 from .core import MarkOptions, Sigil
 
 G, R, Y, B, X = "\033[32m", "\033[31m", "\033[33m", "\033[1m", "\033[0m"
@@ -69,7 +70,12 @@ def main(argv=None):
                            monthly_users=a.monthly_users,
                            visible_label=None if a.label == "auto" else a.label == "on",
                            output_format=Path(a.dst).suffix.lstrip(".").upper() or None)
-        out, receipt = sg.mark_image(Path(a.src).read_bytes(), opts)
+        src = Path(a.src).read_bytes()
+        if video.is_video(src):
+            opts.output_format = None
+            out, receipt = sg.mark_video(src, opts)
+        else:
+            out, receipt = sg.mark_image(src, opts)
         Path(a.dst).write_bytes(out)
         print(json.dumps(receipt.to_dict(), indent=2) if a.json else
               f"{G}Marked{X} {a.dst}  id={receipt.content_id}  applied={', '.join(receipt.controls_applied)}")
@@ -82,7 +88,9 @@ def main(argv=None):
     if path.suffix.lower() in (".txt", ".md"):
         rep = sg.verify_text(path.read_text(), _ctx(a, "text"))
     else:
-        rep = sg.verify_image(path.read_bytes(), _ctx(a, "image"))
+        data = path.read_bytes()
+        rep = (sg.verify_video(data, _ctx(a, "video")) if video.is_video(data)
+               else sg.verify_image(data, _ctx(a, "image")))
     if a.json:
         print(json.dumps(rep, indent=2, default=str))
         return 0

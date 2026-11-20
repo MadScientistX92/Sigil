@@ -27,13 +27,24 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
   ~42 dB PSNR. v1 kept as a detection fallback so old marks still verify. Not covered: rotation, flips,
   aspect-changing resizes, crops under ~160 px. Verify on a resized image now costs ~0.1-0.4 s. 18 new tests in
   `tests/test_watermark.py`. 39 passing tests
+- **2026-11-20**: video marking `sigil-video-v1` (first slice of Next #4). `sigil/video.py` streams frames through
+  ffmpeg pipes, applies the v2 image watermark (and the visible label when a rule needs it) to every frame,
+  re-encodes to H.264 MP4 at CRF 18 (audio copied, AAC fallback) and core signs a C2PA manifest into the MP4.
+  Detector reads up to 6 keyframes then up to 6 evenly spaced frames and votes on the content id (stops at 2
+  agreeing frames). `POST /v1/mark/video`, `/v1/verify` sniffs video uploads, CLI `mark`/`check` take videos,
+  metering `mark.video` / `verify.video`, ffmpeg added to the Dockerfile. Survives metadata strip, H.264 CRF 23,
+  VP9 ~1 Mbps, trim, moderate crop; patchy at CRF 28 / 0.75x downscale; fails CRF 32 and 0.5x (README Honest
+  limits). 10 new tests in `tests/test_video.py` (skipped without ffmpeg). 49 passing tests
 
 ## Next (in priority order)
 1. Hosted public detector (free tier on Fly.io, Render or Hugging Face Spaces) so `/verify` has a public URL
 2. Production C2PA signing certificate from a C2PA-trusted CA (dev cert shows as "untrusted")
 3. Publish the JS SDK to npm: needs Maddy's npm account and a decision on the package name/scope
    (`@sigil-ai/sdk` is a placeholder); then drop `"private": true` in `sdk/js/package.json`
-4. Video (per-frame mark + C2PA for MP4), then audio watermark (AudioSeal, MIT)
+4. Audio watermark (AudioSeal, MIT). Video follow-ups: `markVideo` in the JS SDK; video on the `/verify` page;
+   stronger mark for re-encodes (embed at lower spatial frequency or spread the payload over several frames and
+   soft-combine across frames, which needs a per-frame-consistent scheme because QIM soft values don't average);
+   background jobs for clips over 25 MB; watermark the audio track once the audio mark exists
 5. Billing (Stripe metered, reads the `usage` table); needs Maddy's Stripe account
 6. Follow-ups to keys/metering: shared rate-limit store (Redis) for multi-instance hosting; per-plan quotas
 7. Watermark follow-ups: rotation / aspect-change tolerance (estimate the tile lattice from its autocorrelation

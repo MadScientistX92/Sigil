@@ -17,6 +17,8 @@ AI_SOURCE_TYPE = "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorith
 COMPOSITE_SOURCE_TYPE = "http://cv.iptc.org/newscodes/digitalsourcetype/compositeWithTrainedAlgorithmicMedia"
 DISCLOSURE_LABEL = "com.sigil.disclosure"
 MIME = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}
+VIDEO_MIME = {"MP4": "video/mp4"}
+ALL_MIME = MIME | VIDEO_MIME
 
 
 def _name(cn: str) -> x509.Name:
@@ -77,7 +79,7 @@ def sign(data: bytes, fmt: str, disclosure: dict, cert_dir: Path, composite: boo
     signer = c2pa.Signer.from_info(info)
     builder = c2pa.Builder(json.dumps(manifest))
     src, dst = io.BytesIO(data), io.BytesIO()
-    builder.sign(signer, MIME[fmt], src, dst)
+    builder.sign(signer, ALL_MIME[fmt], src, dst)
     return dst.getvalue()
 
 
@@ -85,10 +87,10 @@ def read(data: bytes, fmt: str) -> dict:
     """Read any C2PA manifest (ours or another provider's). Returns a summary dict."""
     out = {"present": False, "ai_generated": False, "issuer": None, "generator": None,
            "valid_signature": None, "sigil": None, "validation": []}
-    if fmt not in MIME:
+    if fmt not in ALL_MIME:
         return out
     try:
-        reader = c2pa.Reader(MIME[fmt], io.BytesIO(data))
+        reader = c2pa.Reader(ALL_MIME[fmt], io.BytesIO(data))
         store = json.loads(reader.json())
     except Exception as e:  # no manifest or unreadable
         out["error"] = str(e)[:200]
