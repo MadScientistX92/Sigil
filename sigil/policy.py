@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import date
 
-RULESET_VERSION = "2026-11-16"
+RULESET_VERSION = "2026-11-23"
 
 # Controls Sigil can apply or check
 C2PA = "c2pa_manifest"            # signed, machine-readable provenance metadata
@@ -60,11 +60,20 @@ RULES: tuple[Rule, ...] = (
         effective=date(2026, 8, 2),
         grace_until=date(2026, 12, 2),
         summary=("Outputs of generative AI systems must be marked in a machine-readable "
-                 "format and be detectable as AI-generated. The Code of Practice expects "
-                 "layered marking (signed metadata plus an imperceptible watermark)."),
+                 "format and be detectable as AI-generated. The final Code of Practice (published "
+                 "2026-06-10, found adequate 2026-07-08/09) expects at least two machine-readable "
+                 "techniques, e.g. signed tamper-evident metadata plus an imperceptible watermark. "
+                 "The Digital Omnibus on AI (Regulation (EU) 2026/1744) gives only systems placed on "
+                 "the market before 2026-08-02 until 2026-12-02; systems placed on the market later "
+                 "must comply from 2026-08-02. Watermark-detector interoperability is expected by "
+                 "2027-02-02."),
         applies_if="You place a generative AI system on the EU market or its output is used in the EU.",
         penalty="Up to EUR 15M or 3% of worldwide annual turnover.",
-        sources=("https://digital-strategy.ec.europa.eu/en/faqs/code-practice-transparency-ai-generated-content",),
+        sources=("https://eur-lex.europa.eu/eli/reg/2026/1744/oj/eng",
+                 "https://digital-strategy.ec.europa.eu/en/policies/code-practice-ai-generated-content",
+                 "https://www.paulweiss.com/insights/client-memos/eu-finalises-transparency-rules-for-ai-generated-content",
+                 "https://www.reedsmith.com/our-insights/blogs/viewpoints/102nbz0/transparency-obligations-for-ai-generated-content-the-code-of-practice-adequacy/",
+                 "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/"),
     ),
     Rule(
         id="eu.art50.1",
@@ -77,7 +86,8 @@ RULES: tuple[Rule, ...] = (
         summary="People must be told they are interacting with an AI system (chatbots, voice agents).",
         applies_if="Your AI system interacts directly with people.",
         penalty="Up to EUR 15M or 3% of worldwide annual turnover.",
-        sources=("https://digital-strategy.ec.europa.eu/en/faqs/code-practice-transparency-ai-generated-content",),
+        sources=("https://www.paulweiss.com/insights/client-memos/eu-finalises-transparency-rules-for-ai-generated-content",
+                 "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/"),
     ),
     Rule(
         id="eu.art50.4",
@@ -91,7 +101,8 @@ RULES: tuple[Rule, ...] = (
         summary="Deployers publishing deepfakes must clearly disclose that the content is AI-generated or manipulated.",
         applies_if="You publish realistic synthetic content depicting real people, places or events.",
         penalty="Up to EUR 15M or 3% of worldwide annual turnover.",
-        sources=("https://digital-strategy.ec.europa.eu/en/faqs/code-practice-transparency-ai-generated-content",),
+        sources=("https://www.paulweiss.com/insights/client-memos/eu-finalises-transparency-rules-for-ai-generated-content",
+                 "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/"),
     ),
     Rule(
         id="ca.sb942",
