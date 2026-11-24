@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 dependencies = ["fastapi", "uvicorn", "pillow", "numpy", "PyWavelets", "opencv-python-headless",
-                "c2pa-python>=0.38", "cryptography", "python-multipart"]
+                "c2pa-python>=0.38", "cryptography", "python-multipart", "scipy"]
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]
 [project.scripts]

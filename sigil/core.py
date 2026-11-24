@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import policy, provenance, video, watermark
+from . import audio, policy, provenance, video, watermark
 from .policy import C2PA, DETECTOR, IDENTIFIER, NOTICE, TEXT_MARK, VISIBLE, WATERMARK
 from .accounts import Accounts
 from .registry import Registry, text_fingerprint
@@ -31,6 +31,9 @@ APP_LEVEL = {
     NOTICE: "Show users a notice that they are interacting with AI before or at first use (UI change, not per file).",
     DETECTOR: "Offer a free public detection tool. Sigil's hosted verify page covers this; link it from your site.",
 }
+
+AUDIO_DISCLOSURE = ("Audio has no visible label: play an audible disclosure at the start (e.g. a short spoken "
+                    "\"this voice is AI-generated\") or show a label in your player UI. Sigil does not add one yet.")
 
 
 def _font(size: int, text: str):
@@ -178,6 +181,26 @@ class Sigil:
         out, cid_hex = self._sign_and_record(encoded, "MP4", "video", cid, video.SCHEME, opts, applied)
         return out, self._receipt(cid_hex, "video", ctx, applied)
 
+    def mark_audio(self, data: bytes, opts: MarkOptions) -> tuple[bytes, Receipt]:
+        """Spread-spectrum watermark in the audio, encoded as WAV/FLAC/MP3/M4A, plus a signed C2PA manifest.
+        Keeps the input format when it is one of those (or ``opts.output_format``), otherwise WAV."""
+        ctx = policy.Context("audio", tuple(opts.jurisdictions), opts.deepfake, opts.monthly_users)
+        fmt = (opts.output_format or audio.sniff(data) or "WAV").upper()
+        fmt = {"AAC": "M4A", "MPEG": "MP3"}.get(fmt, fmt)
+        fmt = fmt if fmt in audio.FORMATS else "WAV"
+        cid = watermark.new_content_id()
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = Path(tmp) / "in", Path(tmp) / f"out.{fmt.lower()}"
+            src.write_bytes(data)
+            audio.embed_file(src, dst, cid, PUBLIC_KEY, fmt)
+            encoded = dst.read_bytes()
+        applied = [WATERMARK, IDENTIFIER]
+        out, cid_hex = self._sign_and_record(encoded, "AUDIO_" + fmt, "audio", cid, audio.SCHEME, opts, applied)
+        r = self._receipt(cid_hex, "audio", ctx, applied)
+        if VISIBLE in r.still_required:
+            r.still_required[VISIBLE] = AUDIO_DISCLOSURE
+        return out, r
+
     def mark_text(self, text: str, opts: MarkOptions, disclose: bool | None = None) -> tuple[str, Receipt]:
         ctx = policy.Context("text", tuple(opts.jurisdictions), opts.deepfake, opts.monthly_users)
         applied = [IDENTIFIER, TEXT_MARK]
@@ -225,6 +248,17 @@ class Sigil:
             path.write_bytes(data)
             wm = video.detect_file(path, PUBLIC_KEY)
         c2 = provenance.read(data, "MP4") if data[4:8] == b"ftyp" else {
+            "present": False, "ai_generated": False, "issuer": None, "generator": None,
+            "valid_signature": None, "sigil": None, "validation": []}
+        return self._report(data, c2, wm, ctx)
+
+    def verify_audio(self, data: bytes, ctx: policy.Context | None = None) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "in"
+            path.write_bytes(data)
+            wm = audio.detect_file(path, PUBLIC_KEY)
+        fmt = audio.sniff(data)
+        c2 = provenance.read(data, "AUDIO_" + fmt) if fmt in audio.MIME else {
             "present": False, "ai_generated": False, "issuer": None, "generator": None,
             "valid_signature": None, "sigil": None, "validation": []}
         return self._report(data, c2, wm, ctx)

@@ -18,7 +18,9 @@ COMPOSITE_SOURCE_TYPE = "http://cv.iptc.org/newscodes/digitalsourcetype/composit
 DISCLOSURE_LABEL = "com.sigil.disclosure"
 MIME = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}
 VIDEO_MIME = {"MP4": "video/mp4"}
-ALL_MIME = MIME | VIDEO_MIME
+AUDIO_MIME = {"AUDIO_WAV": "audio/wav", "AUDIO_FLAC": "audio/flac", "AUDIO_MP3": "audio/mpeg",
+              "AUDIO_M4A": "audio/mp4"}
+ALL_MIME = MIME | VIDEO_MIME | AUDIO_MIME
 
 
 def _name(cn: str) -> x509.Name:

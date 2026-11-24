@@ -36,16 +36,32 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
   VP9 ~1 Mbps, trim, moderate crop; patchy at CRF 28 / 0.75x downscale; fails CRF 32 and 0.5x (README Honest
   limits). 10 new tests in `tests/test_video.py` (skipped without ffmpeg). 49 passing tests
 - **2026-11-23**: ruleset 2026-11-23. EU `eu.art50.2`: clarified that the Digital Omnibus on AI (Regulation (EU) 2026/1744, in force 2026-07-27) gives the 2026-12-02 grace date only to generative systems placed on the market before 2026-08-02 (later systems: from 2026-08-02); summary now reflects the final Code of Practice (published 2026-06-10, adequate 2026-07-08/09: at least two machine-readable techniques) and the 2027-02-02 detector-interoperability date. Replaced the stale pre-drafting EC FAQ source on all three EU rules with EUR-Lex, the Code page, Paul Weiss (2026-08-04), Reed Smith (2026-07-28) and Gibson Dunn (2026-05-27). Dates, controls and penalties unchanged. Open conflict (not acted on): DLA Piper's timetable table says 2 Dec 2027 for pre-Aug systems while its body text and the other firms say 2 Dec 2026; Omnibus body text not yet read on EUR-Lex. California, India (MeitY 2026-10-08 labelling advisory to social media intermediaries is non-binding, no rule change), Korea: no rule changes found. New outside scope: Pennsylvania Act 99 of 2026 (AI deceptive ads disclosure, signed 2026-10-22, effective ~2026-12-21, advertisers only). 49 passing tests
+- **2026-11-24**: audio watermark `sigil-audio-ss-v1` (Next #4, audio part). Built in-house (numpy/scipy DSP,
+  `sigil/audio.py`) instead of AudioSeal: AudioSeal needs torch plus a model download, which would bloat the
+  image several GB; revisit if real-world robustness falls short. Keyed spread-spectrum chips in a 16 kHz mono
+  domain, 96 slots x 16 ms (64 payload + 32 sync, 1.54 s period), shaped to the host's STFT magnitude at 0.12x
+  (300 Hz-6 kHz), resampled to the file rate and added to all channels. Detector whitens, folds modulo the
+  period, finds phase by FFT correlation with the sync template (z >= 7 gate), reads 64 bits with Chase
+  decoding (<= 2 weak-bit flips) + CRC-16. `Sigil.mark_audio` / `verify_audio` with signed C2PA for
+  WAV/FLAC/MP3/M4A (other inputs come back as WAV), `POST /v1/mark/audio`, `/v1/verify` sniffs audio (before
+  video, so M4A isn't treated as video), CLI `mark`/`check`, metering `mark.audio` / `verify.audio`, `/verify`
+  page now accepts audio and video files. Deepfake audio: receipt says an audible disclosure is still needed.
+  `scipy` added as a dependency. Survives MP3 64k+, AAC 96k, Opus 64k, resample to 8 kHz, mono, volume, 4 kHz
+  low-pass, trim; fails speed change, <~4 s clips, 30 dB noise on short clips (README Honest limits). ~0.7 s to
+  mark 2 min of 48 kHz stereo. 34 new tests in `tests/test_audio.py` (skipped without ffmpeg). 83 passing tests
 
 ## Next (in priority order)
 1. Hosted public detector (free tier on Fly.io, Render or Hugging Face Spaces) so `/verify` has a public URL
 2. Production C2PA signing certificate from a C2PA-trusted CA (dev cert shows as "untrusted")
 3. Publish the JS SDK to npm: needs Maddy's npm account and a decision on the package name/scope
    (`@sigil-ai/sdk` is a placeholder); then drop `"private": true` in `sdk/js/package.json`
-4. Audio watermark (AudioSeal, MIT). Video follow-ups: `markVideo` in the JS SDK; video on the `/verify` page;
-   stronger mark for re-encodes (embed at lower spatial frequency or spread the payload over several frames and
-   soft-combine across frames, which needs a per-frame-consistent scheme because QIM soft values don't average);
-   background jobs for clips over 25 MB; watermark the audio track once the audio mark exists
+4. Audio/video follow-ups: listening test of the audio mark and a robustness run on real TTS/music clips
+   (current numbers are from synthetic signals); watermark the audio track when marking video; audible
+   disclosure for audio deepfakes (prepend a short spoken notice per language); speed/pitch tolerance
+   (search a time-scale factor like the image scale search); `markAudio` / `markVideo` in the JS SDK;
+   stronger video mark for re-encodes (embed at lower spatial frequency or spread the payload over several
+   frames and soft-combine, which needs a per-frame-consistent scheme because QIM soft values don't average);
+   background jobs for clips over 25 MB
 5. Billing (Stripe metered, reads the `usage` table); needs Maddy's Stripe account
 6. Follow-ups to keys/metering: shared rate-limit store (Redis) for multi-instance hosting; per-plan quotas
 7. Watermark follow-ups: rotation / aspect-change tolerance (estimate the tile lattice from its autocorrelation

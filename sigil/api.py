@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from . import policy
 from .accounts import RateLimiter
-from . import video
+from . import audio, video
 from .core import MarkOptions, Sigil
 
 MAX_BYTES = 25 * 1024 * 1024
@@ -153,6 +153,28 @@ async def mark_video(file: UploadFile = File(...), provider: str = Form(...), sy
         "X-Sigil-Receipt": base64.b64encode(rj.encode()).decode()})
 
 
+@app.post("/v1/mark/audio")
+async def mark_audio(file: UploadFile = File(...), provider: str = Form(...), system: str = Form(...),
+                     system_version: str = Form(""), jurisdictions: str = Form("eu,ca,in,kr"),
+                     deepfake: bool = Form(False), monthly_users: int = Form(0),
+                     output_format: str = Form(""), org: str = Depends(org_for)):
+    if not audio.available():
+        raise HTTPException(501, "audio support is not installed on this server (needs ffmpeg)")
+    data = await _read(file)
+    opts = MarkOptions(provider=provider, system=system, system_version=system_version, org=org,
+                       jurisdictions=_juris(jurisdictions), deepfake=deepfake, monthly_users=monthly_users,
+                       output_format=output_format or None)
+    try:
+        out, receipt = sigil.mark_audio(data, opts)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    sigil.accounts.meter(org, "mark.audio")
+    rj = json.dumps(receipt.to_dict())
+    return Response(out, media_type=audio.MIME.get(audio.sniff(out) or "", "audio/wav"), headers={
+        "X-Sigil-Content-Id": receipt.content_id,
+        "X-Sigil-Receipt": base64.b64encode(rj.encode()).decode()})
+
+
 class TextIn(BaseModel):
     text: str
     provider: str
@@ -187,6 +209,15 @@ async def verify(request: Request, response: Response, file: UploadFile | None =
     js = _juris(jurisdictions)
     if file is not None:
         data = await _read(file)
+        if audio.sniff(data):
+            if not audio.available():
+                raise HTTPException(501, "audio support is not installed on this server (needs ffmpeg)")
+            try:
+                rep = sigil.verify_audio(data, policy.Context("audio", js, deepfake, monthly_users))
+            except ValueError as e:
+                raise HTTPException(422, f"could not read audio: {e}")
+            sigil.accounts.meter(org or "public", "verify.audio")
+            return rep
         if video.is_video(data):
             if not video.available():
                 raise HTTPException(501, "video support is not installed on this server (needs ffmpeg)")
