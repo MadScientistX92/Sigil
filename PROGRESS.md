@@ -49,6 +49,14 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
   `scipy` added as a dependency. Survives MP3 64k+, AAC 96k, Opus 64k, resample to 8 kHz, mono, volume, 4 kHz
   low-pass, trim; fails speed change, <~4 s clips, 30 dB noise on short clips (README Honest limits). ~0.7 s to
   mark 2 min of 48 kHz stereo. 34 new tests in `tests/test_audio.py` (skipped without ffmpeg). 83 passing tests
+- **2026-11-27**: video soundtrack watermark `sigil-video-v2` (Next #4 slice). `video.embed_file` now marks the
+  first audio track with `sigil-audio-ss-v1` (same content id as the frames, re-encoded to AAC 192k); tracks under
+  3 s or silent are copied unmarked (`audio_marked: False`). `video.detect_file` reads frames and soundtrack and
+  reports `found_in` (`frames` / `audio`) plus the audio result; when they disagree, the CRC-checked audio id wins
+  over a single stray frame, frames win when >= 2 agree. A soundtrack ripped from a marked video verifies via
+  `/v1/verify` as audio. Measured: CRF 32 + 0.5x downscale + AAC 96k (frame mark gone) still caught via audio on
+  12 s clips 12/12, on 8 s clips ~9/12 (two lossy AAC passes). README video section, API table and Honest limits
+  updated. 7 new tests in `tests/test_video_audio.py`. 90 passing tests
 
 ## Next (in priority order)
 1. Hosted public detector (free tier on Fly.io, Render or Hugging Face Spaces) so `/verify` has a public URL
@@ -56,7 +64,7 @@ Engineering log for Sigil. Read this first when resuming work, and update it at 
 3. Publish the JS SDK to npm: needs Maddy's npm account and a decision on the package name/scope
    (`@sigil-ai/sdk` is a placeholder); then drop `"private": true` in `sdk/js/package.json`
 4. Audio/video follow-ups: listening test of the audio mark and a robustness run on real TTS/music clips
-   (current numbers are from synthetic signals); watermark the audio track when marking video; audible
+   (current numbers are from synthetic signals); audible
    disclosure for audio deepfakes (prepend a short spoken notice per language); speed/pitch tolerance
    (search a time-scale factor like the image scale search); `markAudio` / `markVideo` in the JS SDK;
    stronger video mark for re-encodes (embed at lower spatial frequency or spread the payload over several

@@ -156,7 +156,7 @@ class Sigil:
         return out, cid_hex
 
     def mark_video(self, data: bytes, opts: MarkOptions) -> tuple[bytes, Receipt]:
-        """Watermark every frame, re-encode to H.264 MP4 (audio kept), sign a C2PA manifest."""
+        """Watermark every frame and the soundtrack, re-encode to H.264 MP4, sign a C2PA manifest."""
         ctx = policy.Context("video", tuple(opts.jurisdictions), opts.deepfake, opts.monthly_users)
         need = policy.required_controls(ctx)
         applied = []
